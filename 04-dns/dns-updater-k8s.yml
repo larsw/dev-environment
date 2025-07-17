@@ -1,0 +1,149 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-updater-script
+  namespace: kube-system
+data:
+  dns-updater.sh: |
+    #!/bin/bash
+    
+    # Simple external-dns replacement for k3d/CoreDNS
+    # This script watches for LoadBalancer services and updates the CoreDNS ConfigMap
+    
+    set -e
+    
+    echo "Starting DNS updater for .kub domains..."
+    
+    # Function to generate DNS zone file
+    generate_zone() {
+        local serial=$(date +%Y%m%d%S)
+        
+        cat << EOF
+    \$ORIGIN kub.
+    @   3600 IN SOA ns1.kub. admin.kub. (
+            ${serial} ; serial (YYYYMMDDSS format)
+            7200       ; refresh (2 hours)
+            3600       ; retry (1 hour)
+            1209600    ; expire (2 weeks)
+            3600       ; minimum (1 hour)
+            )
+
+    ; Nameserver record
+    @       IN NS   ns1.kub.
+    ns1     IN A    127.0.0.1
+
+    ; Initial placeholder record
+    example 30 IN A 127.0.0.1
+
+    EOF
+
+        # Add LoadBalancer services
+        kubectl get svc -A -o json | jq -r '
+            .items[] | 
+            select(.spec.type == "LoadBalancer" and .status.loadBalancer.ingress != null) |
+            select(.metadata.annotations."external-dns.alpha.kubernetes.io/hostname" != null) |
+            (.metadata.annotations."external-dns.alpha.kubernetes.io/hostname" | split(".")[0]) + " 30 IN A " + .status.loadBalancer.ingress[0].ip
+        ' 2>/dev/null || true
+        
+        # Add Ingress resources pointing to Traefik LoadBalancer
+        TRAEFIK_IP=$(kubectl get svc traefik -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+        if [ -n "$TRAEFIK_IP" ]; then
+            kubectl get ingress -A -o json | jq -r --arg traefik_ip "$TRAEFIK_IP" '
+                .items[] | 
+                .spec.rules[]? | 
+                select(.host != null) |
+                (.host | split(".")[0]) + " 30 IN A " + $traefik_ip
+            ' 2>/dev/null || true
+        fi
+        
+        # Also add services without annotation but with .kub suffix (excluding traefik)
+        kubectl get svc -A -o json | jq -r '
+            .items[] | 
+            select(.spec.type == "LoadBalancer" and .status.loadBalancer.ingress != null) |
+            select(.metadata.annotations."external-dns.alpha.kubernetes.io/hostname" == null) |
+            select(.metadata.name != "traefik") |
+            .metadata.name + " 30 IN A " + .status.loadBalancer.ingress[0].ip
+        ' 2>/dev/null || true
+        
+        # Add empty line at the end for proper zone file formatting
+        echo ""
+    }
+    
+    # Function to update DNS records
+    update_dns() {
+        echo "Checking for DNS record changes..."
+        
+        # Generate new zone content
+        new_zone=$(generate_zone)
+        
+        # Get current zone content
+        current_zone=$(kubectl get configmap coredns-config -n kube-system -o jsonpath='{.data.db\.kub}' 2>/dev/null || echo "")
+        
+        # Compare and update if different
+        if [ "$current_zone" != "$new_zone" ]; then
+            echo "DNS records changed, updating ConfigMap..."
+            
+            # Create ConfigMap if it doesn't exist
+            if ! kubectl get configmap coredns-config -n kube-system >/dev/null 2>&1; then
+                echo "Creating new ConfigMap..."
+                # Create temporary file with escaped content
+                echo "$new_zone" | jq -Rs . > /tmp/zone_content.json
+                kubectl create configmap coredns-config -n kube-system --from-literal="db.kub=$new_zone"
+            else
+                # Properly escape the content for JSON
+                escaped_zone=$(echo "$new_zone" | jq -Rs .)
+                kubectl patch configmap coredns-config -n kube-system --type merge -p "{\"data\":{\"db.kub\":$escaped_zone}}"
+            fi
+            echo "ConfigMap updated successfully"
+            
+            # Restart CoreDNS deployment to reload config
+            kubectl rollout restart deployment coredns-kub -n kube-system
+            echo "CoreDNS restarted to reload configuration"
+        else
+            echo "No changes to DNS records"
+        fi
+    }
+    
+    # Initial update
+    update_dns
+    
+    # Watch for changes every 30 seconds
+    while true; do
+        sleep 30
+        update_dns
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dns-updater
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dns-updater
+  template:
+    metadata:
+      labels:
+        app: dns-updater
+    spec:
+      serviceAccountName: external-dns
+      containers:
+      - name: dns-updater
+        image: alpine/k8s:1.28.13
+        command:
+        - /bin/bash
+        - /scripts/dns-updater.sh
+        volumeMounts:
+        - name: script
+          mountPath: /scripts
+        env:
+        - name: PATH
+          value: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      volumes:
+      - name: script
+        configMap:
+          name: dns-updater-script
+          defaultMode: 0755

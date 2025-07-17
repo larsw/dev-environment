@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  kub.server: |
+    kub:53 {
+        errors
+        health
+        ready
+        hosts {
+            10.10.10.2 test.kub
+            10.10.10.2 api.kub
+            10.10.10.2 dashboard.kub
+            fallthrough
+        }
+        forward . 8.8.8.8 8.8.4.4
+        cache 30
+        loop
+        reload
+        loadbalance
+    }

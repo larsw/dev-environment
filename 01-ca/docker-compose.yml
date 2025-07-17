@@ -1,0 +1,22 @@
+services:
+  step-ca:
+    image: smallstep/step-ca:latest
+    container_name: step-ca-kub
+    restart: unless-stopped
+    ports:
+      - "8443:9000"  # ACME server port
+    volumes:
+      - ./step-ca-config:/home/step:rw
+    # Remove auto-initialization environment variables since we manually initialize
+    environment: []
+    networks:
+      - step-ca
+    healthcheck:
+      test: ["CMD", "step", "ca", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  step-ca:
+    driver: bridge

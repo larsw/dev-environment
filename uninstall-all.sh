@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Complete uninstallation script for k3d-metallb-environment
+
+set -e
+
+echo "=== K3D MetalLB Environment - Complete Uninstallation ==="
+echo
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+info() {
+    echo -e "${YELLOW}→${NC} $1"
+}
+
+error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+# Function to run uninstallation step
+run_uninstall() {
+    local dir=$1
+    local name=$2
+    
+    info "Uninstalling $name..."
+    if cd "$dir" && ./uninstall.sh; then
+        success "$name uninstalled successfully"
+        cd ..
+    else
+        error "Failed to uninstall $name (continuing anyway)"
+    fi
+    echo
+}
+
+# Confirmation prompt
+echo "This will completely remove the k3d-metallb-environment setup."
+echo "Are you sure you want to continue? (y/N)"
+read -r response
+if [[ ! "$response" =~ ^[Yy]$ ]]; then
+    echo "Uninstallation cancelled."
+    exit 0
+fi
+echo
+
+# Uninstallation steps in reverse order
+run_uninstall "07-echo" "Echo service"
+run_uninstall "06-cert-manager" "cert-manager"
+run_uninstall "05-loadbalancer" "MetalLB LoadBalancer"
+run_uninstall "04-dns" "DNS management"
+run_uninstall "03-ingress" "Traefik ingress controller"
+run_uninstall "02-cluster" "k3d cluster"
+run_uninstall "01-ca" "Step-CA ACME server"
+
+echo "=== Uninstallation Complete ==="
+echo
+success "All components uninstalled successfully!"
+echo
+echo "Cleanup notes:"
+echo "- Docker images may still be present (use: docker system prune)"
+echo "- Configuration files in directories are preserved"
+echo "- You may need to manually remove any remaining Docker volumes"
