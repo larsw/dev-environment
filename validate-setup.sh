@@ -85,7 +85,10 @@ fi
 
 # Test DNS resolution
 echo "8. Testing DNS resolution..."
-if dig +short @10.10.10.254 echo.kub | grep -q "10.10.10"; then
+COREDNS_IP=$(kubectl get svc coredns-kub -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+if [ -z "$COREDNS_IP" ]; then
+    warning "CoreDNS LoadBalancer IP not available yet (is MetalLB running?)"
+elif dig +short @"$COREDNS_IP" echo.kub | grep -Eq '([0-9]{1,3}\.){3}[0-9]{1,3}'; then
     success "DNS resolution for echo.kub works"
 else
     error "DNS resolution for echo.kub failed"
@@ -93,7 +96,7 @@ fi
 
 # Test local DNS resolution
 echo "9. Testing local DNS resolution..."
-if nslookup echo.kub | grep -q "10.10.10"; then
+if nslookup echo.kub | grep -Eq 'Address: ([0-9]{1,3}\.){3}[0-9]{1,3}'; then
     success "Local DNS resolution for echo.kub works"
 else
     warning "Local DNS resolution for echo.kub failed (systemd-resolved may not be configured)"

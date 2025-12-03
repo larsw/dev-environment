@@ -50,7 +50,7 @@ The step-ca server is configured to work with the k3d environment:
 
 1. **DNS Names**: Includes `step-ca.kub`, `localhost`, and `127.0.0.1`
 2. **Docker Network**: Accessible from k3d containers via `host.docker.internal:8443`
-3. **Cert-manager**: Configured as ClusterIssuer in `01-cluster/cert-manager-step-ca.yml`
+3. **Cert-manager**: Configured as ClusterIssuer in `06-cert-manager/cert-manager-step-ca.yml`
 4. **System Trust**: Root CA installed in system trust store
 
 ## Usage
@@ -143,7 +143,7 @@ Important files to backup:
 ## Next Steps
 
 After setting up step-ca, continue with:
-1. **01-cluster** - Create k3d cluster with cert-manager
-2. **02-loadbalancer** - Setup MetalLB for LoadBalancer services
-3. **03-dns** - Configure DNS for `.kub` domains
-4. **04-ingress** - Setup Traefik with TLS certificates
+1. **02-cluster** - Create k3d cluster with cert-manager
+2. **05-loadbalancer** - Setup MetalLB for LoadBalancer services
+3. **03-ingress** - Setup Traefik with TLS certificates
+4. **04-dns** - Configure DNS for `.kub` domains

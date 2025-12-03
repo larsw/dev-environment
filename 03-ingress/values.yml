@@ -3,7 +3,7 @@ ingressRoute:
     enabled: true
     matchRule: Host(`dashboard.kub`)
     entryPoints:
-      - web
+      - web # should this be websecure? what about cert-manager HTTP-01 challenge?
     annotations:
       external-dns.alpha.kubernetes.io/hostname: dashboard.kub
     middlewares:
@@ -15,6 +15,12 @@ providers:
 gateway:
   namespacePolicy: All
 
+# Keep both entrypoints; redirect handled by catch-all IngressRoute so HTTP-01 challenge routes can win
+ports:
+  web: {}
+  websecure:
+    tls:
+      enabled: true
 # Enable API and dashboard
 api:
   dashboard: true

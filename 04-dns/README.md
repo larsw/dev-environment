@@ -1,6 +1,6 @@
 # DNS Setup for .kub Domains
 
-This directory contains the DNS configuration for automatic `.kub` domain management in the k3d cluster.
+This directory contains the DNS configuration for automatic `.kub` domain management in the k3d cluster. All DNS resources now live here (the old `03-dns/` hostPath is no longer used).
 
 ## Overview
 
@@ -12,6 +12,7 @@ The DNS setup consists of:
 ## Files
 
 ### Core Components
+- `coredns-kub.yml` - CoreDNS ConfigMap/Deployment/Service (LoadBalancer) for `.kub` zones
 - `dns-updater-k8s.yml` - DNS updater deployment that automatically manages `.kub` DNS records
 - `external-dns-setup.yml` - RBAC permissions and service account for the DNS updater
 
@@ -21,21 +22,29 @@ The DNS setup consists of:
 
 ## Setup Instructions
 
+MetalLB must be installed so the CoreDNS service can receive a LoadBalancer IP. The `configure-systemd-resolved.sh` script will wait for that IP and exit with an error if MetalLB is not running.
+
 ### 1. Deploy DNS Components
 
 ```bash
 # Deploy RBAC and service account
 kubectl apply -f external-dns-setup.yml
 
+# Deploy CoreDNS for .kub domains (LoadBalancer service)
+kubectl apply -f coredns-kub.yml
+
 # Deploy DNS updater
 kubectl apply -f dns-updater-k8s.yml
+
+# Check the LoadBalancer IP MetalLB assigned to CoreDNS
+kubectl get svc coredns-kub -n kube-system
 ```
 
 ### 2. Configure Local DNS Resolution
 
 ```bash
 # Configure systemd-resolved to use in-cluster CoreDNS for .kub domains
-./configure-systemd-resolved.sh
+./configure-systemd-resolved.sh  # auto-detects the CoreDNS LoadBalancer IP
 ```
 
 ### 3. Verify Setup
@@ -45,7 +54,8 @@ kubectl apply -f dns-updater-k8s.yml
 kubectl get pods -n kube-system -l app=dns-updater
 
 # Check DNS resolution works
-dig @10.10.10.254 echo.kub
+COREDNS_IP=$(kubectl get svc coredns-kub -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+dig @"$COREDNS_IP" echo.kub
 nslookup echo.kub
 ```
 
@@ -86,9 +96,9 @@ api     30 IN A 10.10.10.3
 ## LoadBalancer Configuration
 
 The DNS updater expects:
-- CoreDNS LoadBalancer service at `10.10.10.254`
+- CoreDNS exposed via the `coredns-kub` LoadBalancer service (MetalLB will assign the IP)
 - Traefik LoadBalancer service for Ingress records
-- MetalLB configured with appropriate IP ranges
+- MetalLB configured with the `10.10.10.0/16` pool (see `05-loadbalancer`)
 
 ## Troubleshooting
 
@@ -105,7 +115,8 @@ kubectl logs -l app=coredns-kub -n kube-system
 ### Check DNS Resolution
 ```bash
 # Test direct DNS query
-dig @10.10.10.254 echo.kub
+COREDNS_IP=$(kubectl get svc coredns-kub -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+dig @"$COREDNS_IP" echo.kub
 
 # Test local resolution
 nslookup echo.kub

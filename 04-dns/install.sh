@@ -6,16 +6,19 @@ set -e
 
 echo "Installing DNS setup..."
 
-# Deploy RBAC and service account
 echo "Deploying DNS RBAC and service account..."
 kubectl apply -f external-dns-setup.yml
 
-# Deploy DNS updater
+echo "Deploying CoreDNS for .kub domains..."
+kubectl apply -f coredns-kub.yml
+
+echo "Waiting for CoreDNS deployment to be ready..."
+kubectl rollout status deployment/coredns-kub -n kube-system --timeout=120s
+
 echo "Deploying DNS updater..."
 kubectl apply -f dns-updater-k8s.yml
 
-# Configure systemd-resolved for local DNS resolution
-echo "Configuring systemd-resolved..."
+echo "Configuring systemd-resolved (auto-detects CoreDNS LoadBalancer IP)..."
 ./configure-systemd-resolved.sh
 
 echo "DNS setup installed successfully!"

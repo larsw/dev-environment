@@ -20,8 +20,7 @@ k3d-metallb-environment/
 │   ├── step-ca-config/           # Step-CA configuration files
 │   └── README.md                 # Step-CA documentation
 ├── 02-cluster/                    # K3d cluster setup
-│   ├── create-cluster.sh         # Create cluster with cert-manager
-│   └── cert-manager-step-ca.yml  # Cert-manager configuration for Step-CA
+│   └── create-cluster.sh         # Create cluster
 ├── 03-ingress/                   # Traefik ingress controller
 │   ├── values.yml               # Traefik configuration
 │   ├── setup-traefik.sh         # Traefik setup script
@@ -35,9 +34,10 @@ k3d-metallb-environment/
 ├── 05-loadbalancer/              # MetalLB LoadBalancer setup
 │   └── metallb-setup.yml        # MetalLB IP pool and L2 advertisement
 ├── 06-cert-manager/              # cert-manager configuration
+│   ├── cert-manager-step-ca.yml  # ClusterIssuer for step-ca ACME
 │   ├── coredns-custom.yaml      # CoreDNS custom configuration
-│   ├── setup-cert-manager.sh    # cert-manager setup script
-│   ├── step-ca-issuer.yaml      # Step-CA ClusterIssuer
+│   ├── install.sh               # cert-manager setup script
+│   ├── step-ca-issuer.yaml      # Example test certificate
 │   ├── step-ca-service.yaml     # Step-CA service configuration
 │   ├── test-cert-new.yaml       # Test certificate
 │   └── README.md                # cert-manager documentation
@@ -73,21 +73,21 @@ cd 02-cluster
 ./install.sh
 ```
 
-### 3. Setup Traefik Ingress
+### 3. Setup MetalLB LoadBalancer
+```bash
+cd 05-loadbalancer
+./install.sh
+```
+
+### 4. Setup Traefik Ingress
 ```bash
 cd 03-ingress
 ./install.sh
 ```
 
-### 4. Setup DNS Management
+### 5. Setup DNS Management
 ```bash
 cd 04-dns
-./install.sh
-```
-
-### 5. Setup MetalLB LoadBalancer
-```bash
-cd 05-loadbalancer
 ./install.sh
 ```
 
@@ -113,8 +113,8 @@ cd 07-echo
 
 ### LoadBalancer Configuration
 - **MetalLB**: Provides LoadBalancer IPs (10.10.10.1-10.10.20.253)
-- **CoreDNS**: In-cluster DNS server at 10.10.10.254 for .kub domains
-- **Traefik**: Ingress controller with LoadBalancer at 10.10.10.1
+- **CoreDNS**: In-cluster DNS server exposed via a MetalLB LoadBalancer for .kub domains (IP is auto-discovered)
+- **Traefik**: Ingress controller with a MetalLB-assigned LoadBalancer IP
 
 ### HTTPS Certificate Management
 - **Step-CA**: Local ACME server for certificate authority
@@ -214,7 +214,7 @@ cd 01-ca && ./uninstall.sh
 ## Architecture
 
 ```
-[Local Machine] → [systemd-resolved] → [CoreDNS LoadBalancer:10.10.10.254] → [CoreDNS Pod]
+[Local Machine] → [systemd-resolved] → [CoreDNS LoadBalancer (MetalLB IP)] → [CoreDNS Pod]
                                                                                     ↓
                                                                            [DNS Updater Pod]
                                                                                     ↓

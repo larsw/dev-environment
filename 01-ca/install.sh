@@ -50,6 +50,18 @@ fi
 echo "Starting step-ca container..."
 docker compose up -d step-ca
 
+# If the k3d network exists, attach step-ca so the cluster can reach it directly
+if docker network ls --format '{{.Name}}' | grep -q '^k3d-default-net$'; then
+    echo "Connecting step-ca container to k3d-default-net (10.10.0.6)..."
+    if ! docker network inspect k3d-default-net --format '{{range .Containers}}{{.Name}}{{end}}' | grep -q 'step-ca-kub'; then
+        docker network connect --ip 10.10.0.6 k3d-default-net step-ca-kub
+    else
+        echo "step-ca container already connected to k3d-default-net"
+    fi
+else
+    echo "k3d-default-net not found; cluster access to step-ca will be configured after the network exists."
+fi
+
 # Wait for step-ca to be ready
 echo "Waiting for step-ca to be ready..."
 sleep 10

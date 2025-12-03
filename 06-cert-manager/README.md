@@ -12,7 +12,7 @@ This directory contains the configuration to integrate cert-manager with the ste
 
 1. **Install cert-manager and configure step-ca integration:**
    ```bash
-   ./setup-cert-manager.sh
+   ./install.sh
    ```
 
 2. **Verify the setup:**
@@ -23,17 +23,23 @@ This directory contains the configuration to integrate cert-manager with the ste
 
 ## Configuration Files
 
-### `step-ca-issuer.yaml`
-- **ClusterIssuer**: Configures cert-manager to use step-ca as the ACME server
-- **Certificate**: Example certificate for testing
+### `cert-manager-step-ca.yml`
+- ClusterIssuer that points cert-manager to the local step-ca ACME endpoint (`https://10.10.0.6:9000/acme/acme-1/directory`)
+- Uses HTTP-01 challenges via Traefik ingress
 
-### `setup-cert-manager.sh`
+### `step-ca-service.yaml`
+- ClusterIP/Endpoints binding to the step-ca container on `10.10.0.6:9000` so the cluster can reach ACME
+
+### `step-ca-issuer.yaml`
+- Example test Certificate (optional)
+
+### `install.sh`
 - Installation script for cert-manager
-- Applies the step-ca configuration
+- Applies the step-ca configuration (ClusterIssuer + Service)
 
 ## Testing Certificate Issuance
 
-The configuration includes a test certificate that will be automatically issued for:
+You can issue the included test certificate:
 - `test.kub`
 - `api.kub`
 
@@ -85,8 +91,8 @@ spec:
 
 4. **Verify step-ca is accessible:**
    ```bash
-   curl -k https://host.docker.internal:8443/health
-   curl -k https://host.docker.internal:8443/acme/acme-1/directory
+   curl -k https://10.10.0.6:9000/health
+   curl -k https://10.10.0.6:9000/acme/acme-1/directory
    ```
 
 ### Common Issues
@@ -125,7 +131,7 @@ spec:
 
 ## step-ca ACME Server Details
 
-- **Server URL**: `https://host.docker.internal:8443/acme/acme-1/directory`
+- **Server URL**: `https://10.10.0.6:9000/acme/acme-1/directory`
 - **Provisioner**: `acme-1`
 - **Challenge Types**: HTTP-01 via Traefik ingress
 - **Certificate Lifetime**: Configured in step-ca (default: 24 hours)

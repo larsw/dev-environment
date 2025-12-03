@@ -1,0 +1,95 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-config
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        log
+        errors
+        health
+        ready
+        file /etc/coredns/db.kub kub
+        forward . 8.8.8.8 1.1.1.1
+        cache 30
+        reload
+    }
+
+  db.kub: |
+    $ORIGIN kub.
+    @   3600 IN SOA ns1.kub. admin.kub. (
+            2024010101 ; serial (YYYYMMDDSS format)
+            7200       ; refresh (2 hours)
+            3600       ; retry (1 hour)
+            1209600    ; expire (2 weeks)
+            3600       ; minimum (1 hour)
+            )
+
+    @       IN NS   ns1.kub.
+    ns1     IN A    127.0.0.1
+
+    example 30 IN A 127.0.0.1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coredns-kub
+  namespace: kube-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coredns-kub
+  template:
+    metadata:
+      labels:
+        app: coredns-kub
+    spec:
+      containers:
+      - name: coredns
+        image: coredns/coredns:1.11.1
+        args: ["-conf", "/etc/coredns/Corefile"]
+        ports:
+        - containerPort: 53
+          name: dns-udp
+          protocol: UDP
+        - containerPort: 53
+          name: dns-tcp
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/coredns
+          readOnly: true
+      volumes:
+      - name: config
+        configMap:
+          name: coredns-config
+          items:
+          - key: Corefile
+            path: Corefile
+          - key: db.kub
+            path: db.kub
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coredns-kub
+  namespace: kube-system
+  labels:
+    app: coredns-kub
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Cluster
+  ports:
+  - name: dns-udp
+    port: 53
+    protocol: UDP
+    targetPort: 53
+  - name: dns-tcp
+    port: 53
+    protocol: TCP
+    targetPort: 53
+  selector:
+    app: coredns-kub

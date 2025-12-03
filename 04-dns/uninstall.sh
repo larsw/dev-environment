@@ -10,13 +10,13 @@ echo "Uninstalling DNS setup..."
 echo "Removing DNS updater deployment..."
 kubectl delete -f dns-updater-k8s.yml --ignore-not-found=true
 
+# Remove CoreDNS deployment/service/configmap
+echo "Removing CoreDNS deployment..."
+kubectl delete -f coredns-kub.yml --ignore-not-found=true
+
 # Remove RBAC and service account
 echo "Removing DNS RBAC and service account..."
 kubectl delete -f external-dns-setup.yml --ignore-not-found=true
-
-# Remove CoreDNS ConfigMap
-echo "Removing CoreDNS ConfigMap..."
-kubectl delete configmap coredns-config -n kube-system --ignore-not-found=true
 
 # Revert systemd-resolved configuration
 echo "Reverting systemd-resolved configuration..."
