@@ -1,0 +1,254 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ontop-db-secret
+  namespace: default
+type: Opaque
+stringData:
+  DB_USER: postgres
+  DB_PASSWORD: postgrespass
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ontop-mapping
+  namespace: default
+data:
+  mapping.obda: |
+    [PrefixDeclaration]
+    lego:  https://lego.com/# 
+    xsd:   http://www.w3.org/2001/XMLSchema#
+
+    [MappingDeclaration] @collection [[
+    # Colors
+    mappingId color_class
+    target     lego:color/{id} a lego:Color .
+    source     SELECT id FROM public.lego_colors;
+
+    mappingId color_name
+    target     lego:color/{id} lego:name "{name}" .
+    source     SELECT id, name FROM public.lego_colors;
+
+    mappingId color_rgb
+    target     lego:color/{id} lego:rgb "{rgb}" .
+    source     SELECT id, rgb FROM public.lego_colors;
+
+    mappingId color_transparent
+    target     lego:color/{id} lego:isTransparent "{is_trans}" .
+    source     SELECT id, is_trans FROM public.lego_colors;
+
+    # Part categories
+    mappingId part_category_class
+    target     lego:partCategory/{id} a lego:PartCategory .
+    source     SELECT id FROM public.lego_part_categories;
+
+    mappingId part_category_name
+    target     lego:partCategory/{id} lego:name "{name}" .
+    source     SELECT id, name FROM public.lego_part_categories;
+
+    # Parts
+    mappingId part_class
+    target     lego:part/{part_num} a lego:Part .
+    source     SELECT part_num FROM public.lego_parts;
+
+    mappingId part_name
+    target     lego:part/{part_num} lego:name "{name}" .
+    source     SELECT part_num, name FROM public.lego_parts;
+
+    mappingId part_category
+    target     lego:part/{part_num} lego:hasCategory lego:partCategory/{part_cat_id} .
+    source     SELECT part_num, part_cat_id FROM public.lego_parts;
+
+    # Themes
+    mappingId theme_class
+    target     lego:theme/{id} a lego:Theme .
+    source     SELECT id FROM public.lego_themes;
+
+    mappingId theme_name
+    target     lego:theme/{id} lego:name "{name}" .
+    source     SELECT id, name FROM public.lego_themes;
+
+    mappingId theme_parent
+    target     lego:theme/{id} lego:parentTheme lego:theme/{parent_id} .
+    source     SELECT id, parent_id FROM public.lego_themes WHERE parent_id IS NOT NULL;
+
+    # Sets
+    mappingId set_class
+    target     lego:set/{set_num} a lego:Set .
+    source     SELECT set_num FROM public.lego_sets;
+
+    mappingId set_name
+    target     lego:set/{set_num} lego:name "{name}" .
+    source     SELECT set_num, name FROM public.lego_sets;
+
+    mappingId set_year
+    target     lego:set/{set_num} lego:year "{year}"^^xsd:gYear .
+    source     SELECT set_num, year FROM public.lego_sets WHERE year IS NOT NULL;
+
+    mappingId set_theme
+    target     lego:set/{set_num} lego:hasTheme lego:theme/{theme_id} .
+    source     SELECT set_num, theme_id FROM public.lego_sets WHERE theme_id IS NOT NULL;
+
+    mappingId set_num_parts
+    target     lego:set/{set_num} lego:numParts "{num_parts}"^^xsd:integer .
+    source     SELECT set_num, num_parts FROM public.lego_sets WHERE num_parts IS NOT NULL;
+
+    # Inventories
+    mappingId inventory_class
+    target     lego:inventory/{id} a lego:Inventory .
+    source     SELECT id FROM public.lego_inventories;
+
+    mappingId inventory_version
+    target     lego:inventory/{id} lego:version "{version}"^^xsd:integer .
+    source     SELECT id, version FROM public.lego_inventories;
+
+    mappingId inventory_set
+    target     lego:inventory/{id} lego:forSet lego:set/{set_num} .
+    source     SELECT id, set_num FROM public.lego_inventories;
+
+    # Inventory Sets (quantity of sets in an inventory)
+    mappingId inventory_sets
+    target     lego:inventory/{inventory_id} lego:containsSet lego:set/{set_num} ;
+               lego:quantity "{quantity}"^^xsd:integer .
+    source     SELECT inventory_id, set_num, quantity FROM public.lego_inventory_sets;
+
+    # Inventory Parts
+    mappingId inventory_parts
+    target     lego:inventory/{inventory_id} lego:containsPart lego:part/{part_num} ;
+               lego:hasColor lego:color/{color_id} ;
+               lego:quantity "{quantity}"^^xsd:integer ;
+               lego:isSpare "{is_spare}" .
+    source     SELECT inventory_id, part_num, color_id, quantity, is_spare FROM public.lego_inventory_parts;
+    ]]
+
+  ontology.owl: |
+    <?xml version="1.0"?>
+    <Ontology xmlns="http://www.w3.org/2002/07/owl#"
+       xml:base="https://lego.com/#"
+       ontologyIRI="https://lego.com/#"
+       xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+       xmlns:owl="http://www.w3.org/2002/07/owl#"
+       xmlns:xml="http://www.w3.org/XML/1998/namespace"
+       xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+       xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+      <Prefix name="lego" IRI="https://lego.com/#"/>
+    </Ontology>
+
+  ontop.properties: |
+    # Ontop configuration
+    jdbc.url=jdbc:postgresql://postgres.default.svc.cluster.local:5432/lego
+    jdbc.user=${DB_USER}
+    jdbc.password=${DB_PASSWORD}
+    jdbc.driver=org.postgresql.Driver
+    ontop.disable-reasoning=true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ontop-scripts
+  namespace: default
+data:
+  download-postgres-driver.sh: |
+    #!/bin/sh
+    set -e
+    PG_VER=42.7.3
+    echo "Downloading PostgreSQL JDBC driver ${PG_VER}"
+    curl -L "https://jdbc.postgresql.org/download/postgresql-${PG_VER}.jar" -o /drivers/postgresql.jar
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ontop
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ontop
+  template:
+    metadata:
+      labels:
+        app: ontop
+    spec:
+      initContainers:
+        - name: fetch-pg-driver
+          image: curlimages/curl:8.6.0
+          command: ["/bin/sh", "/scripts/download-postgres-driver.sh"]
+          volumeMounts:
+            - name: ontop-scripts
+              mountPath: /scripts
+            - name: jdbc-driver
+              mountPath: /drivers
+      containers:
+        - name: ontop
+          image: ontop/ontop:latest
+          args:
+            - endpoint
+            - --port=8080
+            - --mapping=/opt/ontop/input/mapping.obda
+            - --ontology=/opt/ontop/input/ontology.owl
+            - --properties=/opt/ontop/input/ontop.properties
+            - --enable-redirects
+          envFrom:
+            - secretRef:
+                name: ontop-db-secret
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: ontop-config
+              mountPath: /opt/ontop/input
+            - name: jdbc-driver
+              mountPath: /opt/ontop/jdbc
+      volumes:
+        - name: ontop-config
+          configMap:
+            name: ontop-mapping
+        - name: ontop-scripts
+          configMap:
+            name: ontop-scripts
+            defaultMode: 0755
+        - name: jdbc-driver
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ontop
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: ontop
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ontop-ingress
+  namespace: default
+  annotations:
+    cert-manager.io/cluster-issuer: step-ca-acme
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-redirect-web-to-websecure@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - ontop.kub
+      secretName: ontop-tls-secret
+  rules:
+    - host: ontop.kub
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ontop
+                port:
+                  name: http

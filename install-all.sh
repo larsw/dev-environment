@@ -53,11 +53,13 @@ echo
 # Installation steps in order
 run_install "01-ca" "Step-CA ACME server"
 run_install "02-cluster" "k3d cluster"
+run_install "05-loadbalancer" "MetalLB LoadBalancer"
 run_install "03-ingress" "Traefik ingress controller"
 run_install "04-dns" "DNS management"
-run_install "05-loadbalancer" "MetalLB LoadBalancer"
 run_install "06-cert-manager" "cert-manager"
 run_install "07-echo" "Echo service"
+run_install "08-postgres" "Postgres with pgAdmin"
+run_install "09-ontop" "Ontop endpoint for LEGO DB"
 
 echo "=== Installation Complete ==="
 echo
