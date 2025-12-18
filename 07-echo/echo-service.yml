@@ -35,10 +35,8 @@ kind: Service
 metadata:
   name: echo
   namespace: default
-  annotations:
-    external-dns.alpha.kubernetes.io/hostname: echo.kub
 spec:
-  type: ClusterIP  # Changed from LoadBalancer to ClusterIP for Ingress
+  type: ClusterIP  # Exposed externally through Istio ingress gateway
   selector:
     app: echo
   ports:
@@ -46,29 +44,103 @@ spec:
       targetPort: 80
       name: http
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
 metadata:
-  name: echo-ingress
-  namespace: default
-  annotations:
-    cert-manager.io/cluster-issuer: step-ca-acme
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-redirect-web-to-websecure@kubernetescrd
+  name: echo-gateway
+  namespace: istio-system
 spec:
-  ingressClassName: traefik  # Using Traefik as the ingress controller
-  tls:
-  - hosts:
+  gatewayClassName: istio
+  listeners:
+    - name: http
+      hostname: "echo.kub"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      hostname: "echo.kub"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: echo-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: echo-cert
+  namespace: istio-system
+spec:
+  secretName: echo-tls
+  issuerRef:
+    name: step-ca-acme
+    kind: ClusterIssuer
+  privateKey:
+    rotationPolicy: Always
+  dnsNames:
     - echo.kub
-    secretName: echo-tls-secret
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: echo
+  namespace: default
+spec:
+  parentRefs:
+    - name: echo-gateway
+      namespace: istio-system
+      sectionName: https
+  hostnames:
+    - echo.kub
   rules:
-  - host: echo.kub
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: echo
-            port:
-              name: http
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: echo
+          port: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: echo-http-redirect
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: echo-gateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          portNumber: 80
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            inlineCode: |
+              function envoy_on_request(handle)
+                local path = handle:headers():get(":path") or ""
+                if string.sub(path, 1, 28) == "/.well-known/acme-challenge/" then
+                  return
+                end
+                local authority = handle:headers():get(":authority") or ""
+                local location = "https://" .. authority .. path
+                handle:respond({[":status"]="301", ["location"]=location}, "")
+              end

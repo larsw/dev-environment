@@ -1,0 +1,25 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+spec:
+  profile: default
+  meshConfig:
+    accessLogFile: /dev/stdout
+    outboundTrafficPolicy:
+      mode: ALLOW_ANY
+  components:
+    pilot:
+      k8s:
+        # Ensure Gateway API reconciliation is enabled
+        env:
+          - name: PILOT_ENABLE_GATEWAY_API
+            value: "true"
+    ingressGateways:
+      - name: istio-ingressgateway
+        enabled: true
+        namespace: istio-system
+        k8s:
+          service:
+            type: LoadBalancer
+          serviceAnnotations:
+            # Preserve DNS automation pattern; MetalLB will allocate an IP
+            external-dns.alpha.kubernetes.io/hostname: "istio.kub"

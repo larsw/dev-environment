@@ -9,7 +9,7 @@ echo "Uninstalling Step-CA ACME server..."
 # Stop and remove Docker containers
 if [ -f docker-compose.yml ]; then
     echo "Stopping Step-CA containers..."
-    docker-compose down -v
+    docker compose down -v
     echo "Step-CA containers stopped and removed"
 else
     echo "No docker-compose.yml found"

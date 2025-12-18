@@ -6,9 +6,9 @@ set -e
 
 echo "Uninstalling cert-manager..."
 
-# Remove Step-CA ClusterIssuer
+# Remove Step-CA ClusterIssuer (and supporting ACME solver config)
 echo "Removing Step-CA ClusterIssuer..."
-kubectl delete -f step-ca-issuer.yaml --ignore-not-found=true
+kubectl delete -f cert-manager-step-ca.yml --ignore-not-found=true
 
 # Remove Step-CA service
 echo "Removing Step-CA service..."
@@ -18,19 +18,10 @@ kubectl delete -f step-ca-service.yaml --ignore-not-found=true
 echo "Removing CoreDNS custom configuration..."
 kubectl delete -f coredns-custom.yaml --ignore-not-found=true
 
-# Remove test certificate
-echo "Removing test certificate..."
-kubectl delete -f test-cert-new.yaml --ignore-not-found=true
-
-# Remove cert-manager Helm release
-echo "Removing cert-manager Helm release..."
-helm uninstall cert-manager -n cert-manager || echo "cert-manager Helm release may not exist"
-
-# Remove cert-manager namespace
+# Remove cert-manager components (namespace and CRDs)
 echo "Removing cert-manager namespace..."
 kubectl delete namespace cert-manager --ignore-not-found=true
 
-# Remove cert-manager CRDs
 echo "Removing cert-manager CRDs..."
 kubectl delete crd --ignore-not-found=true \
     certificaterequests.cert-manager.io \

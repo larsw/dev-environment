@@ -4,9 +4,11 @@ services:
     container_name: step-ca-kub
     restart: unless-stopped
     ports:
-      - "8443:9000"  # ACME server port
+      - "8443:8443"  # ACME server port
     volumes:
       - ./step-ca-config:/home/step:rw
+    extra_hosts:
+      - "step-ca.kub:127.0.0.1"
     # Remove auto-initialization environment variables since we manually initialize
     environment: []
     networks:

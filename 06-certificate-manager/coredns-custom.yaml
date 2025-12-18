@@ -9,7 +9,7 @@ data:
         errors
         health
         ready
-        forward . 10.43.113.9
+        forward . 10.43.216.12
         cache 30
         reload
     }

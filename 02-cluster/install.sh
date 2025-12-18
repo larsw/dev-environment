@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CLUSTER=${CLUSTER:-k3s-default}
+
 # Check if k3d-default-net network exists
 if ! docker network ls --format "{{.Name}}" | grep -q "^k3d-default-net$"; then
     echo "Creating k3d-default-net network..."
@@ -27,7 +29,8 @@ k3d cluster create \
 	--agents $NO_AGENTS \
 	--registry-create registry:5000 \
 	--network k3d-default-net \
-    --image $K3S_IMAGE
+        --image $K3S_IMAGE \
+        $CLUSTER
 
 # Wait for cluster to be ready
 echo "Waiting for cluster to be ready..."
@@ -36,5 +39,5 @@ kubectl wait --for=condition=ready node --all --timeout=300s
 echo "Cluster setup complete!"
 echo ""
 echo "Next steps:"
-echo "1. Make sure step-ca is running: cd ../00-ca && ./setup-step-ca.sh"
-echo "2. Continue with MetalLB, ingress, DNS, then cert-manager (06-cert-manager)"
+echo "1. Make sure step-ca is running: cd ../01-ca && ./setup-step-ca.sh"
+echo "2. Continue with DNS, MetalLB, ingress, then cert-manager (06-certificate-manager)"

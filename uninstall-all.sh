@@ -51,11 +51,13 @@ fi
 echo
 
 # Uninstallation steps in reverse order
+run_uninstall "09-ontop" "Ontop endpoint for LEGO DB"
+run_uninstall "08-postgres" "Postgres with pgAdmin"
 run_uninstall "07-echo" "Echo service"
-run_uninstall "06-cert-manager" "cert-manager"
-run_uninstall "05-loadbalancer" "MetalLB LoadBalancer"
-run_uninstall "04-dns" "DNS management"
-run_uninstall "03-ingress" "Traefik ingress controller"
+run_uninstall "06-certificate-manager" "cert-manager"
+run_uninstall "05-ingress" "Istio ingress gateway"
+run_uninstall "04-loadbalancer" "MetalLB LoadBalancer"
+run_uninstall "03-dns" "DNS management"
 run_uninstall "02-cluster" "k3d cluster"
 run_uninstall "01-ca" "Step-CA ACME server"
 

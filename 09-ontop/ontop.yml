@@ -226,29 +226,103 @@ spec:
       port: 8080
       targetPort: 8080
 ---
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
 metadata:
-  name: ontop-ingress
-  namespace: default
-  annotations:
-    cert-manager.io/cluster-issuer: step-ca-acme
-    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-redirect-web-to-websecure@kubernetescrd
+  name: ontop-gateway
+  namespace: istio-system
 spec:
-  ingressClassName: traefik
-  tls:
-    - hosts:
-        - ontop.kub
-      secretName: ontop-tls-secret
+  gatewayClassName: istio
+  listeners:
+    - name: http
+      hostname: "ontop.kub"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+    - name: https
+      hostname: "ontop.kub"
+      port: 443
+      protocol: HTTPS
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: ontop-tls
+      allowedRoutes:
+        namespaces:
+          from: All
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ontop-cert
+  namespace: istio-system
+spec:
+  secretName: ontop-tls
+  issuerRef:
+    name: step-ca-acme
+    kind: ClusterIssuer
+  privateKey:
+    rotationPolicy: Always
+  dnsNames:
+    - ontop.kub
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ontop
+  namespace: default
+spec:
+  parentRefs:
+    - name: ontop-gateway
+      namespace: istio-system
+      sectionName: https
+  hostnames:
+    - ontop.kub
   rules:
-    - host: ontop.kub
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: ontop
-                port:
-                  name: http
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: ontop
+          port: 8080
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ontop-http-redirect
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      gateway.networking.k8s.io/gateway-name: ontop-gateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          portNumber: 80
+          filterChain:
+            filter:
+              name: envoy.filters.network.http_connection_manager
+              subFilter:
+                name: envoy.filters.http.router
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.lua
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+            inlineCode: |
+              function envoy_on_request(handle)
+                local path = handle:headers():get(":path") or ""
+                if string.sub(path, 1, 28) == "/.well-known/acme-challenge/" then
+                  return
+                end
+                local authority = handle:headers():get(":authority") or ""
+                local location = "https://" .. authority .. path
+                handle:respond({[":status"]="301", ["location"]=location}, "")
+              end

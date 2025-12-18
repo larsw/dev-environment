@@ -1,0 +1,41 @@
+---
+# ClusterIssuer for step-ca ACME
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: step-ca-acme
+spec:
+  acme:
+    server: https://10.10.0.6:8443/acme/acme/directory
+    email: admin@kub.local
+    privateKeySecretRef:
+      name: step-ca-acme-account-key
+    skipTLSVerify: true
+    solvers:
+      - selector:
+          dnsNames:
+            - echo.kub
+        http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: echo-gateway
+                namespace: istio-system
+                sectionName: http
+      - selector:
+          dnsNames:
+            - pgadmin.kub
+        http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: pgadmin-gateway
+                namespace: istio-system
+                sectionName: http
+      - selector:
+          dnsNames:
+            - ontop.kub
+        http01:
+          gatewayHTTPRoute:
+            parentRefs:
+              - name: ontop-gateway
+                namespace: istio-system
+                sectionName: http

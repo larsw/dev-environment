@@ -47,16 +47,17 @@ command -v docker >/dev/null 2>&1 || { error "Docker is required but not install
 command -v k3d >/dev/null 2>&1 || { error "k3d is required but not installed"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { error "kubectl is required but not installed"; exit 1; }
 command -v helm >/dev/null 2>&1 || { error "Helm is required but not installed"; exit 1; }
+command -v istioctl >/dev/null 2>&1 || { error "istioctl is required but not installed (expected in ~/.local/bin)"; exit 1; }
 success "All prerequisites found"
 echo
 
 # Installation steps in order
 run_install "01-ca" "Step-CA ACME server"
 run_install "02-cluster" "k3d cluster"
-run_install "05-loadbalancer" "MetalLB LoadBalancer"
-run_install "03-ingress" "Traefik ingress controller"
-run_install "04-dns" "DNS management"
-run_install "06-cert-manager" "cert-manager"
+run_install "03-dns" "DNS management"
+run_install "04-loadbalancer" "MetalLB LoadBalancer"
+run_install "05-ingress" "Istio ingress gateway"
+run_install "06-certificate-manager" "cert-manager"
 run_install "07-echo" "Echo service"
 run_install "08-postgres" "Postgres with pgAdmin"
 run_install "09-ontop" "Ontop endpoint for LEGO DB"

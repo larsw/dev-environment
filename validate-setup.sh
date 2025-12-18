@@ -59,12 +59,12 @@ else
     error "CoreDNS for .kub domains is not deployed"
 fi
 
-# Check Traefik ingress controller
-echo "5. Checking Traefik ingress controller..."
-if kubectl get pods -n kube-system -l app.kubernetes.io/name=traefik | grep -q "Running"; then
-    success "Traefik ingress controller is running"
+# Check Istio ingress controller
+echo "5. Checking Istio ingress gateway..."
+if kubectl get pods -n istio-system -l istio=ingressgateway | grep -q "Running"; then
+    success "Istio ingress gateway is running"
 else
-    error "Traefik ingress controller is not running"
+    error "Istio ingress gateway is not running"
 fi
 
 # Check cert-manager
@@ -120,8 +120,8 @@ fi
 
 # Check certificate
 echo "12. Checking TLS certificate..."
-if kubectl get certificate echo-tls-secret &>/dev/null; then
-    CERT_STATUS=$(kubectl get certificate echo-tls-secret -o jsonpath='{.status.conditions[0].status}')
+if kubectl get certificate echo-cert -n istio-system &>/dev/null; then
+    CERT_STATUS=$(kubectl get certificate echo-cert -n istio-system -o jsonpath='{.status.conditions[0].status}')
     if [ "$CERT_STATUS" = "True" ]; then
         success "TLS certificate for echo.kub is ready"
     else

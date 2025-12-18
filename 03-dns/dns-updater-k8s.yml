@@ -46,23 +46,26 @@ data:
             (.metadata.annotations."external-dns.alpha.kubernetes.io/hostname" | split(".")[0]) + " 30 IN A " + .status.loadBalancer.ingress[0].ip
         ' 2>/dev/null || true
         
-        # Add Ingress resources pointing to Traefik LoadBalancer
-        TRAEFIK_IP=$(kubectl get svc traefik -n kube-system -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-        if [ -n "$TRAEFIK_IP" ]; then
-            kubectl get ingress -A -o json | jq -r --arg traefik_ip "$TRAEFIK_IP" '
-                .items[] | 
-                .spec.rules[]? | 
-                select(.host != null) |
-                (.host | split(".")[0]) + " 30 IN A " + $traefik_ip
+        # Add HTTPRoute resources pointing to their parent Gateway LoadBalancer IPs
+        GATEWAYS=$(kubectl get gateway -A -o json 2>/dev/null || echo "")
+        if [ -n "$GATEWAYS" ]; then
+            kubectl get httproute -A -o json | jq -r --argjson gateways "$GATEWAYS" '
+                .items[] |
+                (.spec.parentRefs // [])[]? as $p |
+                (.spec.hostnames // [])[]? as $host |
+                ($p.namespace // .metadata.namespace) as $pns |
+                ($gateways.items[] | select(.metadata.name == $p.name and .metadata.namespace == $pns) | .status.addresses[0].value // "") as $gw_ip |
+                select($gw_ip != "" and ($host | test("^\\*") | not)) |
+                ($host | split(".")[0]) + " 30 IN A " + $gw_ip
             ' 2>/dev/null || true
         fi
         
-        # Also add services without annotation but with .kub suffix (excluding traefik)
+        # Also add services without annotation but with .kub suffix (excluding istio-ingressgateway)
         kubectl get svc -A -o json | jq -r '
             .items[] | 
             select(.spec.type == "LoadBalancer" and .status.loadBalancer.ingress != null) |
             select(.metadata.annotations."external-dns.alpha.kubernetes.io/hostname" == null) |
-            select(.metadata.name != "traefik") |
+            select(.metadata.name != "istio-ingressgateway") |
             .metadata.name + " 30 IN A " + .status.loadBalancer.ingress[0].ip
         ' 2>/dev/null || true
         
