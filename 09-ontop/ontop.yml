@@ -21,7 +21,6 @@ data:
     xsd:   http://www.w3.org/2001/XMLSchema#
 
     [MappingDeclaration] @collection [[
-    # Colors
     mappingId color_class
     target     lego:color/{id} a lego:Color .
     source     SELECT id FROM public.lego_colors;
@@ -38,7 +37,6 @@ data:
     target     lego:color/{id} lego:isTransparent "{is_trans}" .
     source     SELECT id, is_trans FROM public.lego_colors;
 
-    # Part categories
     mappingId part_category_class
     target     lego:partCategory/{id} a lego:PartCategory .
     source     SELECT id FROM public.lego_part_categories;
@@ -47,7 +45,6 @@ data:
     target     lego:partCategory/{id} lego:name "{name}" .
     source     SELECT id, name FROM public.lego_part_categories;
 
-    # Parts
     mappingId part_class
     target     lego:part/{part_num} a lego:Part .
     source     SELECT part_num FROM public.lego_parts;
@@ -60,7 +57,6 @@ data:
     target     lego:part/{part_num} lego:hasCategory lego:partCategory/{part_cat_id} .
     source     SELECT part_num, part_cat_id FROM public.lego_parts;
 
-    # Themes
     mappingId theme_class
     target     lego:theme/{id} a lego:Theme .
     source     SELECT id FROM public.lego_themes;
@@ -73,7 +69,6 @@ data:
     target     lego:theme/{id} lego:parentTheme lego:theme/{parent_id} .
     source     SELECT id, parent_id FROM public.lego_themes WHERE parent_id IS NOT NULL;
 
-    # Sets
     mappingId set_class
     target     lego:set/{set_num} a lego:Set .
     source     SELECT set_num FROM public.lego_sets;
@@ -94,7 +89,6 @@ data:
     target     lego:set/{set_num} lego:numParts "{num_parts}"^^xsd:integer .
     source     SELECT set_num, num_parts FROM public.lego_sets WHERE num_parts IS NOT NULL;
 
-    # Inventories
     mappingId inventory_class
     target     lego:inventory/{id} a lego:Inventory .
     source     SELECT id FROM public.lego_inventories;
@@ -107,13 +101,11 @@ data:
     target     lego:inventory/{id} lego:forSet lego:set/{set_num} .
     source     SELECT id, set_num FROM public.lego_inventories;
 
-    # Inventory Sets (quantity of sets in an inventory)
     mappingId inventory_sets
     target     lego:inventory/{inventory_id} lego:containsSet lego:set/{set_num} ;
                lego:quantity "{quantity}"^^xsd:integer .
     source     SELECT inventory_id, set_num, quantity FROM public.lego_inventory_sets;
 
-    # Inventory Parts
     mappingId inventory_parts
     target     lego:inventory/{inventory_id} lego:containsPart lego:part/{part_num} ;
                lego:hasColor lego:color/{color_id} ;
@@ -184,12 +176,14 @@ spec:
         - name: ontop
           image: ontop/ontop:latest
           args:
-            - endpoint
-            - --port=8080
-            - --mapping=/opt/ontop/input/mapping.obda
-            - --ontology=/opt/ontop/input/ontology.owl
-            - --properties=/opt/ontop/input/ontop.properties
-            - --enable-redirects
+            - --port
+            - "8080"
+            - --mapping
+            - /opt/ontop/input/mapping.obda
+            - --ontology
+            - /opt/ontop/input/ontology.owl
+            - --properties
+            - /opt/ontop/input/ontop.properties
           envFrom:
             - secretRef:
                 name: ontop-db-secret

@@ -2,11 +2,10 @@
 
 # Script to configure systemd-resolved to use CoreDNS for .kub domains
 
+source "$(dirname "$0")/../_shared.sh"
+
 set -e
 
-COREDNS_NAMESPACE="${COREDNS_NAMESPACE:-kube-system}"
-COREDNS_SERVICE="${COREDNS_SERVICE:-coredns-kub}"
-FALLBACK_DNS="${FALLBACK_DNS:-8.8.8.8 1.1.1.1}"
 LOOKUP_TIMEOUT="${LOOKUP_TIMEOUT:-120}"
 
 echo "Configuring systemd-resolved for .kub domains..."

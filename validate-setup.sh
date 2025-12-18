@@ -3,28 +3,12 @@
 # Validation script for k3d-metallb-environment setup
 # This script verifies that all components are working correctly
 
+source "$(dirname "$0")/_shared.sh"
+
 set -e
 
 echo "=== K3D MetalLB Environment Validation ==="
 echo
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-error() {
-    echo -e "${RED}✗${NC} $1"
-}
 
 # Check if k3d cluster is running
 echo "1. Checking k3d cluster..."

@@ -2,11 +2,12 @@
 
 # Install script for MetalLB LoadBalancer
 
+source "$(dirname "$0")/../_shared.sh"
+
 set -e
 
 echo "Installing MetalLB LoadBalancer..."
 
-METALLB_VERSION="${METALLB_VERSION:-v0.15.2}"
 METALLB_MANIFEST="https://raw.githubusercontent.com/metallb/metallb/${METALLB_VERSION}/config/manifests/metallb-native.yaml"
 
 # Install MetalLB (CRDs + controllers) if not present

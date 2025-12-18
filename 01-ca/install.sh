@@ -2,13 +2,14 @@
 
 # Enhanced setup for step-ca with better k3d integration
 
+source "$(dirname "$0")/../_shared.sh"
+
 set -e
 
 echo "Setting up step-ca ACME server for k3d environment..."
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG_DIR="$SCRIPT_DIR/step-ca-config"
-STEP_IMAGE="smallstep/step-ca:latest"
 PASSWORD_FILE="$CONFIG_DIR/secrets/password"
 
 ensure_dirs() {

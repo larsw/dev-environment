@@ -2,9 +2,9 @@
 
 # Script to install cert-manager and configure it with step-ca
 
-set -e
+source "$(dirname "$0")/../_shared.sh"
 
-CERT_MANAGER_VERSION="${CERT_MANAGER_VERSION:-v1.19.1}"
+set -e
 
 echo "Installing cert-manager..."
 

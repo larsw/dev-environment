@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLUSTER=${CLUSTER:-k3s-default}
+source "$(dirname "$0")/../_shared.sh"
 
 # Check if k3d-default-net network exists
 if ! docker network ls --format "{{.Name}}" | grep -q "^k3d-default-net$"; then
@@ -14,10 +14,6 @@ if ! docker network ls --format "{{.Name}}" | grep -q "^k3d-default-net$"; then
 else
     echo "k3d-default-net network already exists, skipping creation..."
 fi
-
-NO_SERVERS=${NO_SERVERS:-1}
-NO_AGENTS=${NO_AGENTS:-2}
-K3S_IMAGE=${K3S_IMAGE:-"rancher/k3s:v1.34.2-k3s1"}
 
 # create cluster
 k3d cluster create \

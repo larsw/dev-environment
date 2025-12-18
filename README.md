@@ -54,6 +54,14 @@ cd 02-cluster && ./uninstall.sh
 cd 01-ca && ./uninstall.sh
 ```
 
+## YOLO: nuke cluster
+
+Or just delete the K3d cluster.
+
+```bash
+./nuke-cluster.sh
+```
+
 ## Checks
 ```bash
 nslookup echo.kub

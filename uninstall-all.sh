@@ -2,28 +2,12 @@
 
 # Complete uninstallation script for k3d-metallb-environment
 
+source "$(dirname "$0")/_shared.sh"
+
 set -e
 
 echo "=== K3D MetalLB Environment - Complete Uninstallation ==="
 echo
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-
-success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-info() {
-    echo -e "${YELLOW}→${NC} $1"
-}
-
-error() {
-    echo -e "${RED}✗${NC} $1"
-}
 
 # Function to run uninstallation step
 run_uninstall() {

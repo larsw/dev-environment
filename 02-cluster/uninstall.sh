@@ -2,9 +2,9 @@
 
 # Uninstall script for k3d cluster
 
-set -e
+source "$(dirname "$0")/../_shared.sh"
 
-CLUSTER=${CLUSTER:-k3s-default}
+set -e
 
 echo "Uninstalling k3d cluster..."
 
@@ -18,4 +18,3 @@ k3d cluster list | grep $CLUSTER || echo "No k3d-metallb-cluster found"
 
 echo "k3d cluster uninstalled successfully!"
 echo "Note: Docker images and k3d registry may still be present"
-
