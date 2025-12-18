@@ -175,9 +175,15 @@ spec:
       containers:
         - name: ontop
           image: ontop/ontop:latest
+          env:
+            - name: ONTOP_DEBUG
+              value: "true"
           args:
             - --port
             - "8080"
+            - --cors-allowed-origins
+            - "*"
+            - --dev
             - --mapping
             - /opt/ontop/input/mapping.obda
             - --ontology
